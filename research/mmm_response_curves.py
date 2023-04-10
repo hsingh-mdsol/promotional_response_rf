@@ -61,6 +61,9 @@ class MMMResponseCurves(object):
             hill_est = np.array(self._response_curve_hill(touches['scaled_vals'],
                                                           popt[0], popt[1], popt[2])).reshape(-1, 1)
             seg_resp[f"{i}_hill_estimate"] = y_axis['scaler'].inverse_transform(hill_est).flatten()
+            seg_resp[f"{i}_hill_estimate_minmax"] = seg_resp[f"{i}_hill_estimate"] / \
+                                                    (max(seg_resp[f"{i}_hill_estimate"])
+                                                     - min(seg_resp[f"{i}_hill_estimate"]))
             scaler_x.update({i: touches['scaler']})
             scaler_y.update({i: y_axis['scaler']})
             opt_hill.update({i: popt})
@@ -106,7 +109,8 @@ class MMMResponseCurves(object):
         resp_final["touches_scaled"] = touches['scaled_vals']
         resp_final[f"{feature}_hill_estimate_minmax"] = resp_final[f"{feature}_hill_estimate"] / \
                                                         (max(resp_final[f"{feature}_hill_estimate"])
-                                                         - min(resp_final[f"{feature}_hill_estimate"]))
+                                                         - min(resp_final[
+                                                                   f"{feature}_hill_estimate"]))
         # plot final curve
         fig_raw = self.plot(resp_final, x='touches', y=[f"{feature}_hill_estimate"])
         fig_hill = self.plot(resp_final, x='touches', y=[feature])
@@ -191,6 +195,9 @@ class MMMResponseCurves(object):
                                                           popt[0], popt[1], popt[2])).reshape(-1, 1)
             resp_final[f"{i}_hill_estimate"] = y_axis['scaler'].inverse_transform(
                 hill_est).flatten()
+            resp_final[f"{i}_hill_estimate_minmax"] = resp_final[f"{i}_hill_estimate"] / \
+                                                      (max(resp_final[f"{i}_hill_estimate"])
+                                                       - min(resp_final[f"{i}_hill_estimate"]))
             opt_hill.update({i: popt})
         # plot final curve
         fig_hill = self.plot(resp_final, x='touches',
