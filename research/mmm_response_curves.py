@@ -16,7 +16,7 @@ class MMMResponseCurves(object):
 
     def _response_curve_hill(self, x: [], beta: float, k: float, s: float) -> []:
         """
-        k shifts inflection point, s controls c or s shape
+        k (or gamma) shifts inflection point, s (or alpha) controls c or s shape
         """
         imp = beta * (1 / (1 + (x / k) ** (-s)))
         return imp
@@ -90,22 +90,25 @@ class MMMResponseCurves(object):
         # hill response curve
         touches = self._scaling(resp_final['touches'])
         y_axis = self._scaling(resp_final[feature])
+        # fill hill on scaled x and y
         try:
-            # popt, pcov = curve_fit(self._response_curve_hill, resp_final['touches'], resp_final[feature],
-            #                       bounds=(0, [np.inf, np.inf, np.inf]))
             popt, pcov = curve_fit(self._response_curve_hill, touches['scaled_vals'],
                                    y_axis['scaled_vals'],
                                    bounds=(0, [np.inf, np.inf, np.inf]))
         except RuntimeError:
             print("Error - curve_fit failed")
             popt = [0, 0, 0]
-        # resp_final[f"{feature}_hill_estimate"] = self._response_curve_hill(resp_final['touches'],
-        #                                                                   popt[0], popt[1], popt[2])
+        # create hill curve
         hill_est = np.array(
             self._response_curve_hill(touches['scaled_vals'], popt[0], popt[1], popt[2])).reshape(
             -1, 1)
+        # convert hill curve to original scale
         resp_final[f"{feature}_hill_estimate"] = y_axis['scaler'].inverse_transform(
             hill_est).flatten()
+        # refit hill on final hill curve to obtain parameter estimates on the correct scale
+        popt, pcov = curve_fit(self._response_curve_hill, resp_final['touches'],
+                               resp_final[f"{feature}_hill_estimate"],
+                               bounds=(0, [np.inf, np.inf, np.inf]))
         resp_final["touches_scaled"] = touches['scaled_vals']
         resp_final[f"{feature}_hill_estimate_minmax"] = resp_final[f"{feature}_hill_estimate"] / \
                                                         (max(resp_final[f"{feature}_hill_estimate"])
