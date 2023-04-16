@@ -8,66 +8,42 @@ from scipy.optimize import minimize
 
 
 class MMMOptimization:
-    def __init__(self, budget: int, params: dict = None, scalers: dict = None, x_scaler=None):
+    def __init__(self, budget: int, params: dict = None):
         self.budget = budget
         self.params = params
-        self.scalers = scalers
-        self.x_scaler = x_scaler
 
-    def _objective_string(self, imp_calc: [] = None) -> str:
+    def _objective_string(self) -> str:
         beta = self.params['beta'].astype(str).tolist()
         a = self.params['alpha'].astype(str).tolist()
         g = self.params['gamma'].astype(str).tolist()
-        if imp_calc is None:
-            n = [f"n[{i}]" for i in range(len(self.params))]
-            res = ['(' + i + '*(1/(1+(' + j + '/' + k + ')**' + '(-' + l + '))))' for i, j, k, l in zip(beta, n, a, g)]
-            res = '-1*(' + '+'.join(res) + ')'
-        else:
-            res = ['(' + i + '*(1/(1+(' + j + '/' + k + ')**' + '(-' + l + '))))' for i, j, k, l in zip(beta, imp_calc,
-                                                                                                        a, g)]
-        return res
+        n = [f"n[{i}]" for i in range(len(self.params))]
+        res = ['(' + i + '*(1/(1+(' + j + '/' + k + ')**' + '(-' + l + '))))' for i, j, k, l in zip(beta, n, g, a)]
+        return '-1*(' + '+'.join(res) + ')'
 
     def _constraint_string(self) -> str:
         n = [f"n[{i}]" for i in range(len(self.params))]
         n = '-'.join(n)
-        # WARNING: Need to address which min max scaler to use for scaling budget
-        budget_scaled = float(self.x_scaler.transform([[self.budget]]))
-        return str(budget_scaled) + '-' + n
+        return str(self.budget) + '-' + n
 
     def _bounds_string(self) -> str:
-        # WARNING: Need to address which min max scaler to use for scaling budget
-        budget_scaled = float(self.x_scaler.transform([[self.budget]]))
-        return '(' + ','.join([f"(0, {budget_scaled})"] * len(self.params)) + ')'
+        return '(' + ','.join([f"(0, {self.budget})"] * len(self.params)) + ')'
 
-    def _scale_output_x(self, x: []):
-        j = 0
-        scaled_x = []
-        for i in self.scalers:
-            scaled_x.append(float(self.scalers[i]['x'].inverse_transform([[x[j]]])))
-            j += 1
-        return scaled_x
-
-    def _scale_output_y(self, x: []):
-        x_str = np.array(x).astype(str).tolist()
-        imp_funcs = self._objective_string(x_str)
-        j, scaled_y = 0, 0
-        for i in self.scalers:
-            scaled_y += float(self.scalers[i]['y'].inverse_transform([[eval(imp_funcs[j])]]))
-            j += 1
-        return scaled_y
+    def calc_impact(self, freq: []):
+        beta = self.params['beta'].astype(str).tolist()
+        a = self.params['alpha'].astype(str).tolist()
+        g = self.params['gamma'].astype(str).tolist()
+        res = ['(' + i + '*(1/(1+(' + str(j) + '/' + k + ')**' + '(-' + l + '))))' for i, j, k, l in zip(beta, freq, g, a)]
+        return {'impact': eval('+'.join(res)), 'total spend': sum(freq)}
 
     def optimize_hill(self, start_vals: []):
-        # WARNING: Need to address which min max scaler to use for scaling budget
-        start_vals_scaled = self.x_scaler.transform(np.array(start_vals).reshape(-1, 1)).flatten().tolist()
         opt_code = \
             f"def objective(n):return {self._objective_string()}\n" + \
             f"def constraint(n):return {self._constraint_string()}\n" + \
             f"bnds = {self._bounds_string()}\n" + \
             f"cons = [{{'type': 'ineq', 'fun': constraint}}]\n" + \
-            f"sol = minimize(objective, {start_vals_scaled}, bounds=bnds, constraints=cons)\n" + \
+            f"sol = minimize(objective, {start_vals}, bounds=bnds, constraints=cons)\n" + \
             f"print(self._objective_string())\n" + \
-            f"print(self._scale_output_x(sol.x))\n" + \
-            f"#print(self._scale_output_y(sol.x))\n" + \
+            f"print(sol.x)\n" + \
             f"print(sol)"
         return exec(opt_code)
 
