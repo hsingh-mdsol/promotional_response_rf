@@ -47,32 +47,22 @@ class MMMOptimization:
             f"print(sol)"
         return exec(opt_code)
 
-    def optimize_hyperopt_hill(self, channels: dict, max_evals: int):
+    def optimize_hyperopt_hill(self, channels: [], max_evals: int, incr: int = 1):
         """
-        channels.columns = channel, max tp, incr
+        Note! Optimization function cannot have 0 raised to negative power and no division by 0
         """
 
         space = {}
         for i in channels:
-            space.update({i: hp.choice(i, [x for x in range(0, channels[i]['max_tp'], channels[i]['incr']) if x > 0])})
+            space.update({i: hp.choice(i, [x for x in range(0, self.budget, incr) if x > 0])})
 
         # define function to be minimized
         def objective(n):
-            imp = float(self.scalers['P1_Arikayce']['y'].inverse_transform(
-                [[(0.962494 * (1 / (1 + (float(self.scalers['P1_Arikayce']['x'].transform(
-                    [[n['P1_Arikayce']]])) / 0.275455) ** (-3.189146e+01))))]])) + \
-                  float(self.scalers['P2_Arikayce']['y'].inverse_transform(
-                      [[(0.991836 * (1 / (1 + (float(self.scalers['P2_Arikayce']['x'].transform(
-                          [[n['P2_Arikayce']]])) / 0.140809) ** (-9.817393))))]])) + \
-                  float(self.scalers['sfmc_opened_email']['y'].inverse_transform(
-                      [[(10.120613 * (1 / (1 + (float(self.scalers['sfmc_opened_email']['x'].transform(
-                          [[n['sfmc_opened_email']]])) / 19.025624) ** (-7.315834e-01))))]])) + \
-                  float(self.scalers['publ_pulsepoint_count']['y'].inverse_transform(
-                      [[(0.837760 * (1 / (1 + (float(self.scalers['publ_pulsepoint_count']['x'].transform(
-                          [[n['publ_pulsepoint_count']]])) / 2.0552716) ** (-9.123839e-13))))]])) + \
-                  float(self.scalers['deep_intent_count']['y'].inverse_transform(
-                      [[(0.852862 * (1 / (1 + (float(self.scalers['deep_intent_count']['x'].transform(
-                          [[n['deep_intent_count']]])) / 0.368371) ** (-9.599313e+01))))]]))
+            imp = (124.0670672095872*(1/(1+(n['P1_Arikayce']/276.1645544074329)**(-37.67207679586566))))+\
+                  (9.7928752392768*(1/(1+(n['P2_Arikayce']/26.38748588126608)**(-37.7874626516533))))+\
+                  (0.015295516888023669*(1/(1+(n['sfmc_opened_email']/14660.132667661981)**(-1.5815131454588016e-09))))+\
+                  (0.03525471170542909*(1/(1+(n['publ_pulsepoint_count']/401.8001165017365)**(-3.867727189843695))))+\
+                  n['deep_intent_count']*0.0
             if sum([n[z] for z in channels]) > self.budget:
                 imp = imp - 99999999
             return -1 * imp
@@ -104,62 +94,4 @@ class MMMOptimization:
         trials = Trials()
         best = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
         output = {'mix': best, 'trials': trials.results, 'space': space}
-        return output
-
-    def optimize_predict_v2(self, x: pd.DataFrame, channels: [], max_evals: int, model, incr: int = 1, lag_channels=[]):
-        """
-        """
-        df_sim = x.copy()
-
-        space = {}
-        for i in channels:
-            space.update({i: hp.choice(i, range(0, self.budget, incr))})
-
-        # define function to be minimized
-        def objective(n):
-            for c in channels + lag_channels:
-                df_sim[c] = n[c]
-            pred = model.predict(df_sim)
-            imp = np.mean(pred)
-            #channels = ['P1_Arikayce', 'P2_Arikayce', 'sfmc_opened_email', 'publ_pulsepoint_count', 'deep_intent_count']
-            cost = n['P1_Arikayce']
-            if sum([n[z] for z in channels]) > self.budget:
-                imp = imp - 99999999
-            return -1 * imp
-
-        trials = Trials()
-        best = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
-        output = {'mix': best, 'trials': trials.results, 'space': space}
-        return output
-
-    def optimize_predict_segments(self, x: pd.DataFrame, channels: [], segments: [], max_evals: int, model,
-                                  incr: int = 1):
-        """
-        """
-        df_sim = x.copy()
-
-        space = {}
-        # for i in channels:
-        #    for j in segments:
-        #        space.update({j: hp.choice(j, {j: [0, 1], i: hp.choice(i, range(0, self.budget, incr))})})
-
-        for i in channels:
-            space.update({i: hp.choice(i, range(0, self.budget, incr))})
-        for j in segments:
-            space.update({j: hp.choice(j, [0, 1])})
-
-        # define function to be minimized
-        def objective(n):
-            for c in channels + segments:
-                df_sim[c] = n[c]
-            pred = model.predict(df_sim)
-            imp = np.mean(pred)
-            if sum([n[z] for z in channels]) > self.budget:
-                imp = imp - 99999999
-            return -1 * imp
-
-        trials = Trials()
-        best = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
-        output = {'mix': best, 'trials': trials.results, 'space': space}
-
         return output
