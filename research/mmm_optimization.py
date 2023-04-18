@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-from hyperopt import tpe, hp, fmin, STATUS_OK, Trials
+from hyperopt import tpe, rand, hp, fmin, STATUS_OK, Trials
 from hyperopt.pyll.base import scope
 from scipy.optimize import minimize
 
@@ -52,17 +52,21 @@ class MMMOptimization:
         Note! Optimization function cannot have 0 raised to negative power and no division by 0
         """
 
+        # create optimization space
         space = {}
         for i in channels:
             space.update({i: hp.choice(i, [x for x in range(0, self.budget, incr) if x > 0])})
 
+        # create equation to optimize
+        c_list = [f"n['{c}']" for c in channels]
+        beta = self.params['beta'].astype(str).tolist()
+        a = self.params['alpha'].astype(str).tolist()
+        g = self.params['gamma'].astype(str).tolist()
+        eq = ['(' + i + '*(1/(1+(' + j + '/' + k + ')**' + '(-' + l + '))))' for i, j, k, l in zip(beta, c_list, g, a)]
+
         # define function to be minimized
         def objective(n):
-            imp = (124.0670672095872*(1/(1+(n['P1_Arikayce']/276.1645544074329)**(-37.67207679586566))))+\
-                  (9.7928752392768*(1/(1+(n['P2_Arikayce']/26.38748588126608)**(-37.7874626516533))))+\
-                  (0.015295516888023669*(1/(1+(n['sfmc_opened_email']/14660.132667661981)**(-1.5815131454588016e-09))))+\
-                  (0.03525471170542909*(1/(1+(n['publ_pulsepoint_count']/401.8001165017365)**(-3.867727189843695))))+\
-                  n['deep_intent_count']*0.0
+            imp = eval('+'.join(eq))
             if sum([n[z] for z in channels]) > self.budget:
                 imp = imp - 99999999
             return -1 * imp
@@ -77,6 +81,7 @@ class MMMOptimization:
         """
         df_sim = x.copy()
 
+        # create optimization space
         space = {}
         for i in channels:
             space.update({i: hp.choice(i, range(0, self.budget, incr))})
@@ -92,6 +97,7 @@ class MMMOptimization:
             return -1 * imp
 
         trials = Trials()
-        best = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
+        best = fmin(fn=objective, space=space, algo=rand.suggest, max_evals=max_evals,
+                    trials=trials)
         output = {'mix': best, 'trials': trials.results, 'space': space}
         return output
