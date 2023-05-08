@@ -17,7 +17,8 @@ class MMMOptimization:
         a = self.params['alpha'].astype(str).tolist()
         g = self.params['gamma'].astype(str).tolist()
         n = [f"n[{i}]" for i in range(len(self.params))]
-        res = ['(' + i + '*(1/(1+(' + j + '/' + k + ')**' + '(-' + l + '))))' for i, j, k, l in zip(beta, n, g, a)]
+        res = ['(' + i + '*(1/(1+(' + j + '/' + k + ')**' + '(-' + l + '))))' for i, j, k, l in
+               zip(beta, n, g, a)]
         return '-1*(' + '+'.join(res) + ')'
 
     def _constraint_string(self) -> str:
@@ -32,7 +33,8 @@ class MMMOptimization:
         beta = self.params['beta'].astype(str).tolist()
         a = self.params['alpha'].astype(str).tolist()
         g = self.params['gamma'].astype(str).tolist()
-        res = ['(' + i + '*(1/(1+(' + str(j) + '/' + k + ')**' + '(-' + l + '))))' for i, j, k, l in zip(beta, freq, g, a)]
+        res = ['(' + i + '*(1/(1+(' + str(j) + '/' + k + ')**' + '(-' + l + '))))' for i, j, k, l in
+               zip(beta, freq, g, a)]
         return {'impact': eval('+'.join(res)), 'total spend': sum(freq)}
 
     def optimize_hill(self, start_vals: []):
@@ -62,7 +64,8 @@ class MMMOptimization:
         beta = self.params['beta'].astype(str).tolist()
         a = self.params['alpha'].astype(str).tolist()
         g = self.params['gamma'].astype(str).tolist()
-        eq = ['(' + i + '*(1/(1+(' + j + '/' + k + ')**' + '(-' + l + '))))' for i, j, k, l in zip(beta, c_list, g, a)]
+        eq = ['(' + i + '*(1/(1+(' + j + '/' + k + ')**' + '(-' + l + '))))' for i, j, k, l in
+              zip(beta, c_list, g, a)]
 
         # define function to be minimized
         def objective(n):
@@ -72,11 +75,12 @@ class MMMOptimization:
             return -1 * imp
 
         trials = Trials()
-        best = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
+        best = fmin(fn=objective, space=space, algo=rand.suggest, max_evals=max_evals,
+                    trials=trials)
         output = {'mix': best, 'trials': trials.results, 'space': space}
         return output
 
-    def optimize_predict(self, x: pd.DataFrame, channels: [], max_evals: int, model, incr: int = 1, lag_channels=[]):
+    def optimize_predict(self, x: pd.DataFrame, channels: [], max_evals: int, model, incr: int = 1):
         """
         """
         df_sim = x.copy()
@@ -86,11 +90,21 @@ class MMMOptimization:
         for i in channels:
             space.update({i: hp.choice(i, range(0, self.budget, incr))})
 
+        # get baseline impacts
+        base_imp_d = {}
+        for i in channels:
+            df_sim[[i] + [c for c in x.columns if f"{i}_lag" in c]] = 0
+            base_imp_d.update({i: np.mean(model.predict(df_sim))})
+        base_imp = sum(base_imp_d.values())
+
+        # reset data frame
+        df_sim = x.copy()
+
         # define function to be minimized
         def objective(n):
-            for c in channels + lag_channels:
-                df_sim[c] = n[c]
-            pred = model.predict(df_sim)
+            for c in channels:
+                df_sim[[c] + [l for l in x.columns if f"{c}_lag" in l]] = n[c]
+            pred = model.predict(df_sim) - base_imp
             imp = np.mean(pred)
             if sum([n[z] for z in channels]) > self.budget:
                 imp = imp - 99999999

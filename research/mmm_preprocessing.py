@@ -5,54 +5,45 @@ import numpy as np
 
 
 class MMMPreprocessing:
-    def __init__(self, group_by: str, segment: str, date: str, media_cols: [], dv: str):
-        self.group_by = group_by
-        self.segment = segment
-        self.date = date
-        self.media_cols = media_cols
-        self.dv = dv
 
-    def balance(self, df: pd.DataFrame) -> pd.DataFrame:
+    def balance(self, df: pd.DataFrame, group_by: str, date: str, segments: [] = None) -> \
+            pd.DataFrame:
         """
-        Balances data frame so each segment as the same number of months. Missing months will get filled with zeros
+        Balances data frame so each segment has the same number of months. Missing months will get
+        filled with zeros
         """
-        # fill missing timestamps at day level with zeros for each segment
-        df_out = df.set_index([self.date, self.group_by]).unstack(fill_value=0).asfreq(
-            'D', fill_value=0).stack().sort_index(level=1).reset_index()
-        # convert timestamp column to datetime
-        df_out[self.date] = df_out[self.date].dt.to_period("M")
-        # roll up to month level
-        df_out = df_out.groupby([self.group_by, self.date]).sum().reset_index()
+        # get range of dates
+        dates = pd.period_range(start=min(df[date]), end=max(df[date]), freq='M').tolist()
+        # get list of unique npis
+        npi = np.unique(df[group_by])
+        # create group_by, date level dataframe where each npi has the same months
+        df_out = pd.DataFrame({group_by: np.repeat(npi, len(dates)), date: dates * len(npi)})
+        df_out[date] = df_out[date].astype(str)
+        # merge in original data
+        df_out = df_out.merge(df, on=[group_by, date], how='left')
+        # if static hcp level columns exist, fill the column with original values
+        if segments is not None:
+            for i in segments:
+                df_out[i] = df_out.groupby([group_by])[i].bfill()
+                df_out[i] = df_out.groupby([group_by])[i].ffill()
+        # replace nan with 0 since nan is the lack of occurrence of media for that time point
+        df_out = df_out.fillna(0)
         return df_out
 
-    def top_segment(self, df: pd.DataFrame, top_n: int) -> pd.DataFrame:
+    def one_hot(self, df: pd.DataFrame, segment: str) -> pd.DataFrame:
+        """
+        Performance one-hot encoding on specified feature column. Necessary for some tree based
+        models
+        """
+        df_out = pd.concat([df, pd.get_dummies(df[[segment]])], axis=1)
+        return df_out
+
+    def top_segment(self, df: pd.DataFrame, segment: str, group_by: str, top_n: int) -> pd.DataFrame:
         """
         """
         df_out = df.copy()
-        aggr = df_out.groupby(self.segment)[self.date].count().reset_index()
-        other_spec = aggr[aggr[self.date] <= top_n][self.segment]
-        df_out[self.segment] = np.where(df_out[self.segment].isin(other_spec), 'Other', df_out[self.segment])
+        aggr = df_out.groupby(segment)[group_by].nunique().reset_index()
+        other_spec = aggr[aggr[group_by] <= top_n][segment]
+        df_out[segment] = np.where(df_out[segment].isin(other_spec), 'Other', df_out[segment])
         return df_out
 
-    def one_hot(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Performance one-hot encoding on specified feature column. Necessary for some tree based models
-        """
-        df_out = pd.concat([df, pd.get_dummies(df[[self.segment]])], axis=1)
-        return df_out
-
-    def cleanup(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Performs proper groupby and sorts by date within segments
-        """
-        df_out = df.copy()
-        df_out[self.date] = pd.to_datetime(df_out[self.date])
-        # encode only top segments
-        df_out = self.top_segment(df_out, 15)
-        # ensure data is at segment, date level
-        df_out = df_out.groupby([self.segment, self.date]).sum().reset_index()
-        # balance
-        df_out = self.balance(df_out)
-        # one hot encode segments
-        df_out = self.one_hot(df_out)
-        return df_out
