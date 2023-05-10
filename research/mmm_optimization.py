@@ -136,4 +136,4 @@ class MMMOptimization:
                     trials=trials)
         best.update((x, y*incr) for x, y in best.items())
         return {'mix': best, 'total_spend': sum(best.values()), 'baseline_impact': base_imp,
-                'trials':trials.results, 'space': space}
+                'trials': trials.results, 'space': space}

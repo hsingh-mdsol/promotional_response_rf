@@ -12,8 +12,7 @@ class MMMPreprocessing:
         df_g = df.groupby(group_by).max().reset_index()
         df_g['drop'] = np.where(df_g[[dv] + channels].sum(axis=1) == 0, 1, 0)
         drop_hcps = df_g[df_g['drop'] == 1][group_by]
-        df_out = df[~df[group_by].isin(drop_hcps)]
-        return df_out
+        return df[~df[group_by].isin(drop_hcps)]
 
     def balance(self, df: pd.DataFrame, group_by: str, date: str, seg_cols=None) -> pd.DataFrame:
         """
@@ -37,8 +36,7 @@ class MMMPreprocessing:
                 df_out[i] = df_out.groupby([group_by])[i].bfill()
                 df_out[i] = df_out.groupby([group_by])[i].ffill()
         # replace nan with 0 since nan is the lack of occurrence of media for that time point
-        df_out = df_out.fillna(0)
-        return df_out
+        return df_out.fillna(0)
 
     def one_hot(self, df: pd.DataFrame, seg_cols: []) -> pd.DataFrame:
         """

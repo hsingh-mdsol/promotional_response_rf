@@ -19,8 +19,7 @@ class MMMModeling(object):
         df = pd.DataFrame({'preds': preds, 'actual': actual})
         df = df[df['actual'] != 0]
         mape = mean_absolute_percentage_error(df['actual'], df['preds'])
-        perf = {'r2': r2, 'rmse': rmse, 'mape': mape}
-        return perf
+        return {'r2': r2, 'rmse': rmse, 'mape': mape}
 
     def _importance(self, model) -> pd.DataFrame:
         """
@@ -29,21 +28,22 @@ class MMMModeling(object):
         importances = model.feature_importances_
         std = np.std([tree.feature_importances_ for tree in model.estimators_], axis=0)
         imp_df = pd.DataFrame({'feature': model.feature_names_in_, 'importance': importances, 'std': std})
-        imp_df.sort_values(['importance'], ascending=False, inplace=True)
-        return imp_df
+        return imp_df.sort_values(['importance'], ascending=False, inplace=True)
 
     def rf_regressor(self, df_inp: pd.DataFrame, x_col: [], y_col: str, date: str, n_estimators: int = 100,
                      criterion: str = 'squared_error', max_depth: int = None) -> dict:
         """
-        Fits a random forest regression model with specified hyperparameters and returns predictions, model object,
-        feature importance, and performance
+        Fits a random forest regression model with specified hyperparameters and returns
+        predictions, model object, feature importance, and performance
         """
         df = df_inp.copy()
         # fit model on full data
-        model = RandomForestRegressor(n_estimators=n_estimators, criterion=criterion, max_depth=max_depth)
+        model = RandomForestRegressor(n_estimators=n_estimators, criterion=criterion,
+                                      max_depth=max_depth)
         model.fit(df[x_col], df[y_col])
         # fit model train/test split on time series split
-        model_test = RandomForestRegressor(n_estimators=n_estimators, criterion=criterion, max_depth=max_depth)
+        model_test = RandomForestRegressor(n_estimators=n_estimators, criterion=criterion,
+                                           max_depth=max_depth)
         dates = df[[date]].sort_values([date]).drop_duplicates()[date].tolist()
         #date_cutoff = str(dates[round(len(dates) * 0.8) - 1])
         date_cutoff = dates[round(len(dates) * 0.8) - 1]
@@ -60,5 +60,5 @@ class MMMModeling(object):
         perf = {'full': self.performance(df['preds_full'], df[y_col]),
                 'train': self.performance(train_df['preds_train'], train_df[y_col]),
                 'test': self.performance(test_df['preds_test'], test_df[y_col])}
-        return {'df_preds_full': df, 'df_preds_train': train_df, 'df_preds_test': test_df,'importance': imp_df,
-                'performance': perf, 'full_model': model}
+        return {'df_preds_full': df, 'df_preds_train': train_df, 'df_preds_test': test_df,
+                'importance': imp_df, 'performance': perf, 'full_model': model}

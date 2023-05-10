@@ -56,5 +56,4 @@ class MMMTransformations(object):
                 df_lag[f"{dv}_lag{i}"] = df_lag[dv].shift(i, fill_value=0)
             else:
                 df_lag[f"{dv}_lag{i}"] = df_lag.groupby(group)[dv].shift(i, fill_value=0)
-
         return df_lag

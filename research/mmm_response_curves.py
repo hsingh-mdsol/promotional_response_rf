@@ -19,8 +19,7 @@ class MMMResponseCurves(object):
         """
         k (or gamma) shifts inflection point, s (or alpha) controls c or s shape
         """
-        imp = beta * (1 / (1 + (x / k) ** (-s)))
-        return imp
+        return beta * (1 / (1 + (x / k) ** (-s)))
 
     def plot(self, df: pd.DataFrame, x: str, y: []):
         """
