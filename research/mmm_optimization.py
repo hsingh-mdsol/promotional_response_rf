@@ -37,6 +37,21 @@ class MMMOptimization:
                zip(beta, freq, g, a)]
         return {'impact': eval('+'.join(res)), 'total spend': sum(freq)}
 
+    def calc_impact_model(self, x: pd.DataFrame, channels: [], model, freq: []):
+        df_sim = x.copy()
+
+        # get baseline impacts
+        for i in channels:
+            df_sim[[i] + [c for c in x.columns if f"{i}_lag" in c]] = 0
+        base_imp = np.mean(model.predict(df_sim))
+
+        # get response
+        df_sim = x.copy()
+        for c, f in zip(channels, freq):
+            df_sim[[c] + [l for l in x.columns if f"{c}_lag" in l]] = f
+        pred = model.predict(df_sim) - base_imp
+        return {'impact': np.mean(pred), 'total spend': sum(freq)}
+
     def optimize_hill(self, start_vals: []):
         opt_code = \
             f"def objective(n):return {self._objective_string()}\n" + \
@@ -77,8 +92,9 @@ class MMMOptimization:
         trials = Trials()
         best = fmin(fn=objective, space=space, algo=rand.suggest, max_evals=max_evals,
                     trials=trials)
-        output = {'mix': best, 'trials': trials.results, 'space': space}
-        return output
+        best.update((x, y*incr) for x, y in best.items())
+        return {'mix': best, 'total_spend': sum(best.values()), 'trials': trials.results,
+                'space': space}
 
     def optimize_predict(self, x: pd.DataFrame, channels: [], max_evals: int, model, incr: int = 1):
         """
@@ -119,5 +135,5 @@ class MMMOptimization:
         best = fmin(fn=objective, space=space, algo=rand.suggest, max_evals=max_evals,
                     trials=trials)
         best.update((x, y*incr) for x, y in best.items())
-        output = {'mix': best, 'trials': trials.results, 'space': space}
-        return output
+        return {'mix': best, 'total_spend': sum(best.values()), 'baseline_impact': base_imp,
+                'trials':trials.results, 'space': space}
