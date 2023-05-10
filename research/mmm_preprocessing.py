@@ -77,7 +77,7 @@ class MMMPreprocessing:
             -> pd.DataFrame:
         """
         """
-        df_out = df[[segment, date, dv] + channels].groupby([segment, date]).sum().reset_index().\
+        df_out = df[[segment, date, dv] + channels].groupby([segment, date]).sum().reset_index(). \
             sort_values([segment, date])
         df_out = self.top_segment(df_out, [segment], date, 15)
         # ensure data is at segment, date level
@@ -104,7 +104,11 @@ class MMMPreprocessing:
             for i in seg_cols:
                 df_seg_time = self.segment_time_agg(df_out, i, date, dv, channels)
                 final_dct.update({f"segment_time_{i}": df_seg_time})
+                # time filtered by segment
+                seg_filt = {}
+                drop_cols = [x for x in df_seg_time.columns if x.startswith(f"{i}_")]
+                for s in np.unique(df_seg_time[i]):
+                    df_filt = df_seg_time[df_seg_time[i] == s].drop(drop_cols, axis=1)
+                    seg_filt.update({f"time_{s}": df_filt})
+                final_dct.update({'time_filtered_on_segment': seg_filt})
         return final_dct
-
-
-
