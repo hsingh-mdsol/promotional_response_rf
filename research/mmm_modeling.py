@@ -27,8 +27,9 @@ class MMMModeling(object):
         """
         importances = model.feature_importances_
         std = np.std([tree.feature_importances_ for tree in model.estimators_], axis=0)
-        imp_df = pd.DataFrame({'feature': model.feature_names_in_, 'importance': importances, 'std': std})
-        return imp_df.sort_values(['importance'], ascending=False, inplace=True)
+        imp_df = pd.DataFrame({'feature': model.feature_names_in_, 'importance': importances,
+                               'std': std})
+        return imp_df.sort_values(['importance'], ascending=False)
 
     def rf_regressor(self, df_inp: pd.DataFrame, x_col: [], y_col: str, date: str, n_estimators: int = 100,
                      criterion: str = 'squared_error', max_depth: int = None) -> dict:
