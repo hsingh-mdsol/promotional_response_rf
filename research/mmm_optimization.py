@@ -90,12 +90,17 @@ class MMMOptimization:
         for i in channels:
             space.update({i: hp.choice(i, range(0, self.budget, incr))})
 
+        ## get baseline impacts
+        #base_imp_d = {}
+        #for i in channels:
+        #    df_sim[[i] + [c for c in x.columns if f"{i}_lag" in c]] = 0
+        #    base_imp_d.update({i: np.mean(model.predict(df_sim))})
+        #base_imp = sum(base_imp_d.values())
+
         # get baseline impacts
-        base_imp_d = {}
         for i in channels:
             df_sim[[i] + [c for c in x.columns if f"{i}_lag" in c]] = 0
-            base_imp_d.update({i: np.mean(model.predict(df_sim))})
-        base_imp = sum(base_imp_d.values())
+        base_imp = np.mean(model.predict(df_sim))
 
         # reset data frame
         df_sim = x.copy()
@@ -113,5 +118,6 @@ class MMMOptimization:
         trials = Trials()
         best = fmin(fn=objective, space=space, algo=rand.suggest, max_evals=max_evals,
                     trials=trials)
+        best.update((x, y*incr) for x, y in best.items())
         output = {'mix': best, 'trials': trials.results, 'space': space}
         return output
