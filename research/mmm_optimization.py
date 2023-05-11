@@ -86,7 +86,7 @@ class MMMOptimization:
         def objective(n):
             imp = eval('+'.join(eq))
             if sum([n[z] for z in channels]) > self.budget:
-                imp = imp - 99999999
+                imp = imp - 99999999999
             return -1 * imp
 
         trials = Trials()
@@ -128,7 +128,7 @@ class MMMOptimization:
             pred = model.predict(df_sim) - base_imp
             imp = np.mean(pred)
             if sum([n[z] for z in channels]) > self.budget:
-                imp = imp - 99999999
+                imp = imp - 99999999999
             return -1 * imp
 
         trials = Trials()

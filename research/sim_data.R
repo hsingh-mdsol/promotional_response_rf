@@ -23,7 +23,8 @@ plot(x3, y3)
 y <- round(y1 + y2 + y3)
 plot(x3, y)
 
-df_sim1 <- data.frame(Specialty = 'Neurologist', date = seq(120), rx_count = y, Email = x1, Phone = x2, Digital = x3)
+df_sim1 <- data.frame(Specialty = 'Neurologist', date = seq(as.Date("2020-09-15"), as.Date("2022-12-31"), by="week"),
+                      rx_count = y, Email = x1, Phone = x2, Digital = x3)
 
 # specialty two
 a <- 0.1
@@ -50,7 +51,8 @@ plot(x3, y3)
 y <- round(y1 + y2 + y3)
 plot(x3, y)
 
-df_sim2 <- data.frame(Specialty = 'Oncologist', date = seq(120), rx_count = y, Email = x1, Phone = x2, Digital = x3)
+df_sim2 <- data.frame(Specialty = 'Oncologist', date = seq(as.Date("2020-09-15"), as.Date("2022-12-31"), by="week"),
+                      rx_count = y, Email = x1, Phone = x2, Digital = x3)
 
 # specialty three
 a <- 3
@@ -77,7 +79,8 @@ plot(x3, y3)
 y <- round(y1 + y2 + y3)
 plot(x3, y)
 
-df_sim3 <- data.frame(Specialty = 'Hematologist', date = seq(120), rx_count = y, Email = x1, Phone = x2, Digital = x3)
+df_sim3 <- data.frame(Specialty = 'Hematologist', date = seq(as.Date("2020-09-15"), as.Date("2022-12-31"), by="week"),
+                      rx_count = y, Email = x1, Phone = x2, Digital = x3)
 
 df_final <- rbind(df_sim1, df_sim2, df_sim3)
 
