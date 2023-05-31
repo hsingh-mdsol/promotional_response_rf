@@ -5,6 +5,8 @@ import numpy as np
 import plotly.express as px
 from scipy.optimize import curve_fit
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.ensemble import RandomForestRegressor
+from tqdm import tqdm
 
 
 class MMMResponseCurves(object):
@@ -21,6 +23,33 @@ class MMMResponseCurves(object):
         """
         return beta * (1 / (1 + (x / k) ** (-s)))
 
+    def prediction_interval(self, x: pd.DataFrame, y: np.array, n_samples: int = 100,
+                            lwr_perc: float = 2.5, upr_perc: float = 97.5) -> np.array:
+        """
+        """
+        # Generate bootstrapped predictions for each test observation
+        bootstrapped_preds = np.zeros((x.shape[0], n_samples))
+        # this will create a 120 x 100 array where each row is the 100 predictions of y at that row
+        for i in tqdm(range(n_samples)):
+            bootstrapped_samples = np.random.choice(x.shape[0], size=x.shape[0], replace=True)
+            X_bootstrapped = x.iloc[bootstrapped_samples]
+            y_bootstrapped = y[bootstrapped_samples]
+            rf_bootstrapped = RandomForestRegressor()
+            rf_bootstrapped.fit(X_bootstrapped, y_bootstrapped)
+            bootstrapped_preds[:, i] = rf_bootstrapped.predict(x)
+        # Calculate the prediction interval for each test observation
+        lower_bounds = np.percentile(bootstrapped_preds, lwr_perc, axis=1)
+        upper_bounds = np.percentile(bootstrapped_preds, upr_perc, axis=1)
+        return np.column_stack((lower_bounds, upper_bounds))
+
+    def error_propagation(self, pred_intervals: np.array, prop_type: str = 'mean'):
+        """
+        """
+        if prop_type == 'mean':
+            errs = pred_intervals[:, 1] - pred_intervals[:, 0]
+            agg_error = np.sqrt(sum(errs ** 2) / len(errs))
+        return agg_error
+
     def plot(self, df: pd.DataFrame, x: str, y: []):
         """
         """
@@ -28,13 +57,29 @@ class MMMResponseCurves(object):
         fig.update_layout(yaxis_title="Rx Impact")
         return fig
 
+    def _response_aggr_errors(self, df: pd.DataFrame, feature: str, max_freq: int,
+                              increment: int) -> pd.DataFrame:
+        """
+        """
+        # create final response data frame
+        resp_final = pd.DataFrame({'touches': range(0, max_freq + 1, increment)})
+        # average predictions at each frequency
+        pred_cols = [x for x in df.columns if ('preds' in x) & ('lb' not in x) & ('ub' not in x)]
+        mean_pred_err = []
+        for i in pred_cols:
+            mean_pred_err.append(self.error_propagation(np.column_stack((df[f"{i}_lb"],
+                                                                         df[f"{i}_ub"]))))
+        # add to final output data frame
+        responses = pd.DataFrame({f"{feature}_errors": mean_pred_err})
+        return pd.concat([resp_final, responses], axis=1)
+
     def _response_aggr(self, df: pd.DataFrame, feature: str, max_freq: int, increment: int) -> []:
         """
         """
         # create final response data frame
         resp_final = pd.DataFrame({'touches': range(0, max_freq + 1, increment)})
         # average predictions at each frequency
-        pred_cols = [x for x in df.columns if 'preds' in x]
+        pred_cols = [x for x in df.columns if ('preds' in x) & ('lb' not in x) & ('ub' not in x)]
         mean_pred = []
         for i in pred_cols:
             mean_pred.append(np.mean(df[i]))
@@ -64,6 +109,10 @@ class MMMResponseCurves(object):
                                                         (max(resp_final[f"{feature}_hill_estimate"])
                                                          - min(resp_final[
                                                                    f"{feature}_hill_estimate"]))
+        # if errors specified
+        if len([x for x in df.columns if ('lb' in x) | ('ub' in x)]) > 0:
+            err_df = self._response_aggr_errors(df, feature, max_freq, increment)
+            resp_og = resp_og.merge(err_df, on='touches', how='left')
         return [resp_final, popt, resp_og]
 
     def _hill_fitting(self, x: [], y: []):
@@ -77,16 +126,21 @@ class MMMResponseCurves(object):
             popt = [0, 0, 0]
         return popt
 
-    def responses(self, model, x: pd.DataFrame, feature: str, max_freq: int, increment: int) -> dict:
+    def responses(self, model, x: pd.DataFrame, feature: str, max_freq: int,
+                  increment: int, **errors) -> dict:
         """
         """
         df_preds = x.copy()
         # get predictions
-        for i in range(0, max_freq + 1, increment):
+        for i in tqdm(range(0, max_freq + 1, increment)):
             df_sim = x.copy()
             # replace channel and its lags with desired frequency
             df_sim[[feature] + [c for c in x.columns if f"{feature}_lag" in c]] = i
             df_preds[f"{feature}_preds_{i}"] = model.predict(df_sim)
+            if errors:
+                errs = self.prediction_interval(df_sim, errors["y"], errors["samples"])
+                df_preds[f"{feature}_preds_{i}_lb"] = errs[:, 0]
+                df_preds[f"{feature}_preds_{i}_ub"] = errs[:, 1]
         # aggregate predictions
         resp_final, popt, resp_og = self._response_aggr(df_preds, feature, max_freq, increment)
         return {'resp_df': resp_final, 'resp_og': resp_og, 'optimal_hill': popt}
