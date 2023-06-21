@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score, mean_absolute_percentage_error, mean_squared_error
+from sklearn.model_selection import train_test_split
 
 
 class MMMModeling(object):
@@ -45,11 +46,16 @@ class MMMModeling(object):
         # fit model train/test split on time series split
         model_test = RandomForestRegressor(n_estimators=n_estimators, criterion=criterion,
                                            max_depth=max_depth)
-        dates = df[[date]].sort_values([date]).drop_duplicates()[date].tolist()
-        #date_cutoff = str(dates[round(len(dates) * 0.8) - 1])
-        date_cutoff = dates[round(len(dates) * 0.8) - 1]
-        train_df = df[df[date] <= date_cutoff]
-        test_df = df[df[date] > date_cutoff]
+        if date is not None:
+            dates = df[[date]].sort_values([date]).drop_duplicates()[date].tolist()
+            #date_cutoff = str(dates[round(len(dates) * 0.8) - 1])
+            date_cutoff = dates[round(len(dates) * 0.8) - 1]
+            train_df = df[df[date] <= date_cutoff]
+            test_df = df[df[date] > date_cutoff]
+        else:
+            x_train, x_test, y_train, y_test = train_test_split(df[x_col], df[y_col], test_size=0.2)
+            train_df = pd.concat([x_train, pd.DataFrame({y_col: y_train})], axis=1)
+            test_df = pd.concat([x_test, pd.DataFrame({y_col: y_test})], axis=1)
         model_test.fit(train_df[x_col], train_df[y_col])
         # predictions
         df['preds_full'] = model.predict(df[x_col])
