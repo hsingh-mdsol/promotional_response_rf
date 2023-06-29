@@ -77,7 +77,7 @@ class MMMResponseCurves(object):
         """
         """
         # create final response data frame
-        resp_final = pd.DataFrame({'touches': range(0, max_freq + 1, increment)})
+        resp_final = pd.DataFrame({'touches': np.arange(0, max_freq + 1, increment)})
         # average predictions at each frequency
         pred_cols = [x for x in df.columns if ('preds' in x) & ('lb' not in x) & ('ub' not in x)]
         mean_pred = []
@@ -132,7 +132,7 @@ class MMMResponseCurves(object):
         """
         df_preds = x.copy()
         # get predictions
-        for i in tqdm(range(0, max_freq + 1, increment)):
+        for i in tqdm(np.arange(0, max_freq + 1, increment)):
             df_sim = x.copy()
             # replace channel and its lags with desired frequency
             df_sim[[feature] + [c for c in x.columns if f"{feature}_lag" in c]] = i
