@@ -62,7 +62,7 @@ class MMMResponseCurves(object):
         """
         """
         # create final response data frame
-        resp_final = pd.DataFrame({'touches': range(0, max_freq + 1, increment)})
+        resp_final = pd.DataFrame({'touches': np.arange(0, max_freq + 1, increment)})
         # average predictions at each frequency
         pred_cols = [x for x in df.columns if ('preds' in x) & ('lb' not in x) & ('ub' not in x)]
         mean_pred_err = []

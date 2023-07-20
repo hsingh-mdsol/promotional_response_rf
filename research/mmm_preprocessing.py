@@ -28,6 +28,7 @@ class MMMPreprocessing:
         # create group_by, date level dataframe where each npi has the same months
         df_out = pd.DataFrame({group_by: np.repeat(npi, len(dates)), date: dates * len(npi)})
         df_out[date] = df_out[date].astype(str)
+        df[date] = df[date].astype(str)
         # merge in original data
         df_out = df_out.merge(df, on=[group_by, date], how='left')
         # if static hcp level columns exist, fill the column with original values
