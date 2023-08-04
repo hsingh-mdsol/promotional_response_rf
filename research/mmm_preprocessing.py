@@ -34,6 +34,8 @@ class MMMPreprocessing:
         # if static hcp level columns exist, fill the column with original values
         if seg_cols is not None:
             for i in seg_cols:
+                # can try to use apply fill na with non-na value groupby
+                #df_out[i] = df_out.groupby([group_by])[i].app
                 df_out[i] = df_out.groupby([group_by])[i].bfill()
                 df_out[i] = df_out.groupby([group_by])[i].ffill()
         # replace nan with 0 since nan is the lack of occurrence of media for that time point
