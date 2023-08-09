@@ -27,7 +27,8 @@ class MMMTransformations(object):
             adstock_values.append(adstock_value)
         return adstock_values
 
-    def segment_adstock(self, df: pd.DataFrame, cols_to_adstock: str, segment: str, decay_rates: float):
+    def segment_adstock(self, df: pd.DataFrame, cols_to_adstock: str, segment: str,
+                        decay_rates: float):
         segments = np.unique(df[segment].tolist())
         segment_adstock = []
         for i in segments:
@@ -36,7 +37,8 @@ class MMMTransformations(object):
             segment_adstock = segment_adstock + adstock
         return segment_adstock
 
-    def segment_adstock_df(self, df: pd.DataFrame, cols_to_adstock: [], segment: str, decay_rates: []) -> pd.DataFrame:
+    def segment_adstock_df(self, df: pd.DataFrame, cols_to_adstock: [], segment: str,
+                           decay_rates: []) -> pd.DataFrame:
         """
         Performs segment level geometric adstock.
         """
@@ -47,7 +49,8 @@ class MMMTransformations(object):
                 df_ads[f"{i}_adstock_{j}"] = segment_adstock
         return df_ads
 
-    def lag_dv(self, df: pd.DataFrame, dv: str, periods: int = 3, group: str = None) -> pd.DataFrame:
+    def lag_dv(self, df: pd.DataFrame, dv: str, periods: int = 3,
+               group: str = None) -> pd.DataFrame:
         """
         """
         df_lag = df.copy()
@@ -57,3 +60,12 @@ class MMMTransformations(object):
             else:
                 df_lag[f"{dv}_lag{i}"] = df_lag.groupby(group)[dv].shift(i, fill_value=0)
         return df_lag
+
+    def winsorize(self, df: pd.DataFrame, cols: [], percentile: int = 95) -> pd.DataFrame:
+        """
+        """
+        df_out = df.copy()
+        for i in cols:
+            threshold = np.percentile(df_out[i], percentile)
+            df_out[i] = np.where(df_out[i] > threshold, threshold, df_out[i])
+        return df_out
